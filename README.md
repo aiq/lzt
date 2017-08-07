@@ -1,2 +1,2 @@
-# lz-tk
-lz-tk is the LuaZDF Toolkit
+# lzt
+lzt is the LuaZDF Toolkit
