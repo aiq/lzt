@@ -1,0 +1,38 @@
+= func2y
+--TODO
+[source,lua]
+----
+function func2y( par ) --> res
+----
+
+== Description
+
+lorem ipsum
+
+== Parameters
+
+par::
+lorem ipsum
+
+== Return Values
+
+res::
+lorem ipsum
+
+== Code
+
+[source,lua]
+----
+include::func2y.lua[]
+----
+
+== Examples
+
+[source,lua]
+----
+include::func2y.ex1.lua[]
+----
+
+== Inspired by
+
+* http://something.else

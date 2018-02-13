@@ -1,0 +1,38 @@
+= func2baxz
+--TODO
+[source,lua]
+----
+function func2baxz( par ) --> res
+----
+
+== Description
+
+lorem ipsum
+
+== Parameters
+
+par::
+lorem ipsum
+
+== Return Values
+
+res::
+lorem ipsum
+
+== Code
+
+[source,lua]
+----
+include::func2baxz.lua[]
+----
+
+== Examples
+
+[source,lua]
+----
+include::func2baxz.ex1.lua[]
+----
+
+== Inspired by
+
+* http://something.else

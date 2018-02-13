@@ -1,0 +1,38 @@
+= func1c
+--TODO
+[source,lua]
+----
+function func1c( par ) --> res
+----
+
+== Description
+
+lorem ipsum
+
+== Parameters
+
+par::
+lorem ipsum
+
+== Return Values
+
+res::
+lorem ipsum
+
+== Code
+
+[source,lua]
+----
+include::func1c.lua[]
+----
+
+== Examples
+
+[source,lua]
+----
+include::func1c.ex1.lua[]
+----
+
+== Inspired by
+
+* http://something.else

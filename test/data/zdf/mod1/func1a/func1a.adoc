@@ -1,0 +1,39 @@
+= func1a
+
+[source,lua]
+----
+function func1a( par ) --> res
+----
+
+== Description
+
+A function without any speciality.
+Where is nothing todo.
+
+== Parameters
+
+par::
+lorem ipsum
+
+== Return Values
+
+res::
+lorem ipsum
+
+== Code
+
+[source,lua]
+----
+include::func1a.lua[]
+----
+
+== Examples
+
+[source,lua]
+----
+include::func1a.ex1.lua[]
+----
+
+== Inspired by
+
+* http://something.else

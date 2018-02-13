@@ -1,0 +1,38 @@
+= func1b
+
+[source,lua]
+----
+function func1b( par ) --> res
+----
+
+== Description
+
+Function that needs a test.
+
+== Parameters
+
+par::
+lorem ipsum
+
+== Return Values
+
+res::
+lorem ipsum
+
+== Code
+
+[source,lua]
+----
+include::func1b.lua[]
+----
+
+== Examples
+
+[source,lua]
+----
+include::func1b.ex1.lua[]
+----
+
+== Inspired by
+
+* http://something.else

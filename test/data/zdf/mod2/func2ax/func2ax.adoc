@@ -1,0 +1,38 @@
+= func2ax
+--TODO
+[source,lua]
+----
+function func2ax( par ) --> res
+----
+
+== Description
+
+lorem ipsum
+
+== Parameters
+
+par::
+lorem ipsum
+
+== Return Values
+
+res::
+lorem ipsum
+
+== Code
+
+[source,lua]
+----
+include::func2ax.lua[]
+----
+
+== Examples
+
+[source,lua]
+----
+include::func2ax.ex1.lua[]
+----
+
+== Inspired by
+
+* http://something.else
