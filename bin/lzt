@@ -757,7 +757,7 @@ local function getdir( args )
 
    local count = 3
    while count > 0 do
-      if dirhas( dir, ".git", "directory" ) then
+      if dirhas( dir, ".zdfroot", "file" ) then
          return rmsuffix( dir, "/" ), args
       end
          
