@@ -67,6 +67,7 @@
 
 @test "appear selection works also for injection" {
    run ../bin/lzt --dir data/zdf inject data/inject.4.in.lua
+   echo "$output"
    [ "$status" -eq 0 ]
    [ "${lines[ 0]}" = '--------------------------------------------------------------------------------' ]
    [ "${lines[ 1]}" = '--LuaZDF-begin --appear func1b func2y' ]
