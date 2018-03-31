@@ -3,18 +3,27 @@
 --------------------------------------------------------------------------------
 --LuaZDF-begin --with addedge appendall basename buildgraph buildset currentdir
 --+ difference dirfiles dirhas dirname dirtree escapeshellarg explode findif
---+ flatten getoptvalues isdir isempty keys leftpad longextname map matchesf
---+ mkdirtree notf readargsfile readfile readlines removeif removerange reverse
---+ rmdirtree rmprefix rmsuffix slice startswith subdirs trim tsort2d values
---+ writelines
+--+ flatten getoptvalues indexof isdir isempty keys leftpad longextname map
+--+ matchesf mkdirtree notf readargsfile readfile readlines removeif
+--+ removerange reverse rmdirtree rmprefix rmsuffix slice startswith subdirs
+--+ trim tsort2d values writelines
 --------------------------------------------------------------------------------
-local lfs = require( "lfs" )  --ZREQ-lfs
+local lfs = require( "lfs" ) --ZREQ-lfs
 --ZFUNC-appendall-v1
 local function appendall( arr, oth ) --> arr
    for _, v in ipairs( oth ) do
       table.insert( arr, v )
    end
    return arr
+end
+--ZFUNC-indexof-v1
+local function indexof( arr, val, init ) --> idx
+   init = init or 1
+   for idx = init, #arr do
+      local v = arr[ idx ]
+      if v == val then return idx end
+   end
+   return nil
 end
 --ZFUNC-readlines-v1
 local function readlines( filename ) --> strlst, err
@@ -123,15 +132,6 @@ local function currentdir() --> path
 end
 --ZFUNC-difference-v1
 local function difference( a, b ) --> res
-   --ZFUNC-indexof-v1
-   local function indexof( arr, val, startidx )
-      startidx = startidx or 1
-      for i = startidx, #arr do
-         local v = arr[ i ]
-         if v == val then return i end
-      end
-      return nil
-   end
    local res = {}
    for _, v in ipairs( a ) do
       if not indexof( b, v ) then table.insert( res, v ) end
@@ -373,7 +373,7 @@ local function mkdirtree( tree, root ) --> res, err
    local function writefile( filename, ... )
       local f, err = io.open( filename, "w" )
       if err then return nil, err end
-      f, err = f:write( ... )
+      local wres, err = f:write( ... )
       if err then return nil, err end
       return f:close()
    end
@@ -675,7 +675,7 @@ local function writelines( filename, strlst ) --> res, err
    local f, err = io.open( filename, "w" )
    if err then return nil, err end
    for _, str in ipairs( strlst ) do
-      f, err = f:write( str, "\n" )
+      local wres, err = f:write( str, "\n" )
       if err then return nil, err end
    end
    return f:close()
@@ -988,6 +988,16 @@ local function buildbeginlines( opt, optvalues )
    return lines
 end
 
+local luaFuncNames = { "assert", "collectgarbage", "dofile", "error", "getfenv",
+   "getmetatable", "ipairs", "load", "loadfile", "loadstring", "module", "next",
+   "pairs", "pcall", "print", "rawequal", "rawget", "rawlen", "rawset",
+   "require", "select", "setfenv", "setmetatable", "tonumber", "tostring",
+   "type", "unpack", "xpcall" }
+
+local luaKeyWords = { "and", "break", "do", "else", "elseif", "end", "false",
+   "for", "function", "goto", "if", "in", "local", "nil", "not", "or", "repeat",
+   "return", "then", "true", "until", "while" }
+
 local function getreqs( funcinfos )
    local reqs = {}
    local dbgi = {}
@@ -1029,13 +1039,32 @@ local function getfuncorder( funcinfos )
    return flatten( groups )
 end
 
+local function goodname( ztree, name )
+   if ztree.fn[ name ] then
+      errfln( "%q exists in module %q.", name, ztree.fn[ name ] )
+      return false
+   end
+
+   if indexof( luaKeyWords, name ) then
+      errfln( "%q is a Lua keyword.", name )
+      return false
+   end
+
+   if indexof( luaFuncNames, name ) then
+      errfln( "%q exists in the Lua standard library.", name )
+      return false
+   end
+
+   return true
+end
+
 local function usage()
    return [[lzt [--args <file>] [--debug|--justdebug] [--dir <dir>] <subcommand>
 
 These are the existing subcommands:
 
 check                   - checks the consistency
-checkname <name>        - checks if a function <name> is allready used
+checkname <name>        - checks if a function <name> is allowed to use
 info <name>             - shows the information for function <name>
 init <name> <module>    - creates default dir for a new function
 inject <src> [dest]     - injects the functions into src, writes to stdout/dest
@@ -1113,11 +1142,11 @@ elseif cmd == "checkname" then
       errexit()
    end
 
-   if ztree.fn[ name ] then
-      printfln( "%q exists in module %q.", name, ztree.fn[ name ] )
-   else
-      printfln( "No function with the name %q.", name )
+   if not goodname( ztree, name ) then
+      return errexit()
    end
+   
+   printfln( "No function with the name %q.", name )
 
 ----------------------------------------------------------------------------info
 elseif cmd == "info" then
@@ -1154,8 +1183,7 @@ elseif cmd == "init" then
       errfln( "init requires the parameter 'module'." )
       errexit()
    end
-   if ztree.fn[ name ] then
-      errfln( "%q exists already in %q.", name, ztree.fn[ name ] )
+   if not goodname( ztree, name ) then
       errexit()
    end
    if not ztree.mod[ mod ] then

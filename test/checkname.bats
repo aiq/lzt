@@ -2,8 +2,8 @@
 
 @test "checkname funca" {
    run ../bin/lzt --dir data/zdf checkname func1a
-   [ "$status" -eq 0 ]
-   [ "$output" = '"func1a" exists in module "mod1".' ]
+   [ "$status" -eq 1 ]
+   [ "$output" = 'Error: "func1a" exists in module "mod1".' ]
 }
 
 @test "checkname xyz" {
