@@ -1522,9 +1522,10 @@ elseif cmd == "vdiff" then
 
 ------------------------------------------------------------------------whattodo
 elseif cmd == "whattodo" then
-   local todos = {}
    local functions = keys( ztree.fn )
    table.sort( functions )
+
+   local todos = {}
    for _, f in ipairs( functions ) do
       local subtodos = {}
       for _, todo in ipairs( ztree:todosfor( f ) ) do
@@ -1540,10 +1541,23 @@ elseif cmd == "whattodo" then
       end
    end
    if #todos > 0 then
+      println( "todos:" )
       printfln( table.concat( todos, "\n" ) )
    end
 
---------------------------------------------------------------------------error
+   local tempfn = {}
+   for _, f in ipairs( functions ) do
+      local info = ztree:infofor( f )
+      if info.mainfn.version == 0 then
+         table.insert( tempfn, info.mainfn.name )
+      end
+   end
+   if #tempfn > 0 then
+      println( "temporary functions:" )
+      printfln( table.concat( tempfn, "\n" ) )
+   end
+
+---------------------------------------------------------------------------error
 else
    errfln( "%q is not a valid command.", cmd )
    errexit()
