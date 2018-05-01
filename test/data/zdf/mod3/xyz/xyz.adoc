@@ -1,0 +1,42 @@
+= xyz
+[source,lua]
+----
+--TODO
+function xyz( par ) --> res
+----
+
+== Description
+
+lorem ipsum
+
+== Parameters
+
+par::
+lorem ipsum
+
+== Return Values
+
+res::
+lorem ipsum
+
+== Code
+
+[source,lua]
+----
+include::xyz.lua[]
+----
+
+== Examples
+
+[source,lua]
+----
+include::xyz.ex1.lua[]
+----
+
+== Inspired by
+
+* http://something.else
+
+== See also
+
+* link:otherfunc.html[otherfunc]

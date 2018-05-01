@@ -6,7 +6,8 @@
    [ "${lines[0]}" = 'LUAZDF_PATH="data/zdf"' ]
    [ "${lines[1]}" = 'LUAZDF_MOD1="$LUAZDF_PATH/mod1/?/?.lua"' ]
    [ "${lines[2]}" = 'LUAZDF_MOD2="$LUAZDF_PATH/mod2/?/?.lua"' ]
-   [ "${lines[3]}" = 'export LUA_PATH="$LUAZDF_MOD1;$LUAZDF_MOD2;;"' ]
+   [ "${lines[3]}" = 'LUAZDF_MOD3="$LUAZDF_PATH/mod3/?/?.lua"' ]
+   [ "${lines[4]}" = 'export LUA_PATH="$LUAZDF_MOD1;$LUAZDF_MOD2;$LUAZDF_MOD3;;"' ]
 }
 
 @test "luapath xyz error" {

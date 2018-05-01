@@ -7,9 +7,9 @@
 }
 
 @test "checkname xyz" {
-   run ../bin/lzt --dir data/zdf checkname xyz
+   run ../bin/lzt --dir data/zdf checkname anewfunc
    [ "$status" -eq 0 ]
-   [ "$output" = 'No function with the name "xyz".' ]
+   [ "$output" = 'No function with the name "anewfunc".' ]
 }
 
 @test "checkname req error" {

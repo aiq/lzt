@@ -19,9 +19,9 @@
 }
 
 @test "init with invalid module name" {
-   run ../bin/lzt --dir data/zdf init xyz mod3
+   run ../bin/lzt --dir data/zdf init anewfunc unknown
    [ "$status" -eq 1 ]
-   [ "$output" = 'Error: "mod3" is not a valid module.' ]
+   [ "$output" = 'Error: "unknown" is not a valid module.' ]
 }
 
 @test "init successfully" {
