@@ -1085,8 +1085,8 @@ local function getfuncorder( funcinfos )
    return flatten( groups )
 end
 
-local function goodname( ztree, name )
-   if ztree.fn[ name ] then
+local function goodname( name, ztree )
+   if ztree and ztree.fn[ name ] then
       errfln( "%q exists in module %q.", name, ztree.fn[ name ] )
       return false
    end
@@ -1162,6 +1162,10 @@ if cmd == "check" then
    local problem = false
    local graph = buildgraph( keys( funcinfos ), {} )
    for fname, info in pairs( funcinfos ) do
+      if not goodname( info.mainfn.name ) then
+         return errexit()
+      end
+
       for subfname, fn in pairs( info.fn ) do
          if not fn.main then
             local parentfunc = funcinfos[ subfname ]
@@ -1188,7 +1192,7 @@ elseif cmd == "checkname" then
       errexit()
    end
 
-   if not goodname( ztree, name ) then
+   if not goodname( name, ztree ) then
       return errexit()
    end
    
@@ -1233,7 +1237,7 @@ elseif cmd == "init" then
       errfln( "init requires the parameter 'module'." )
       errexit()
    end
-   if not goodname( ztree, name ) then
+   if not goodname( name, ztree ) then
       errexit()
    end
    if not ztree.mod[ mod ] then
