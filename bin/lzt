@@ -1193,6 +1193,7 @@ makelib <selection>     - writes a Lua module to the stdout
 testenv <selection>     - creates a shell script that allows to test all
 usage                   - prints a short usage overview
 vdiff <filename>        - shows the functions where the version not up to date
+version                 - lzt version
 whattodo                - lists all function files that have a --TODO comment]]
 end
 
@@ -1598,6 +1599,10 @@ elseif cmd == "vdiff" then
          end
       end
    end
+
+-------------------------------------------------------------------------version
+elseif cmd == "version" then
+   println( "lzt version: 1.1" )
 
 ------------------------------------------------------------------------whattodo
 elseif cmd == "whattodo" then
