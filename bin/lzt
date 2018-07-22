@@ -4,7 +4,7 @@
 --LuaZDF-begin --with addedge appendall basename buildgraph buildset currentdir
 --+ deepcopy difference dirfiles dirhas dirname dirtree escapeshellarg explode
 --+ findif flatten getoptvalues indexof isdir isempty keys leftpad longextname
---+ map matchesf mkdirtree notf readargsfile readfile readlines removeif
+--+ map matchesf mint mkdirtree notf readargsfile readfile readlines removeif
 --+ removerange reverse rmdirtree rmprefix rmsuffix slice startswith subdirs
 --+ trim tsort2d values without writelines
 --------------------------------------------------------------------------------
@@ -229,10 +229,33 @@ local function dirtree( dir ) --> iter
    end
    return coroutine.wrap( function() yieldtree( dir ) end )
 end
---ZFUNC-escapeshellarg-v1
+local escapeshellarg = (function() 
+local quote_function
+--ZFUNC-escapeshellarg-v2
 local function escapeshellarg( str ) --> esc
-   return '"'..str:gsub( '"', '\\"' )..'"'
+  local function posix_quote_argument(str)
+    str = str:gsub( "[$`\"\\]", "\\%1" )
+    return '"' .. str .. '"'
+  end
+  local function windows_quote_argument(str)
+    str = str:gsub('[%%&\\^<>|]', '^%1')
+    str = str:gsub('"', "\\%1")
+    str = str:gsub('[ \t][ \t]*', '"%1"')
+    return str
+  end
+  if not quote_function then
+    quote_function = windows_quote_argument
+    local shell = os.getenv('SHELL')
+    if shell then
+      if '/' == shell:sub(1,1) and 'sh' == shell:sub(-2, -1) then
+        quote_function = posix_quote_argument
+      end
+    end
+  end
+  return quote_function(str)
 end
+return escapeshellarg
+end)()
 --ZFUNC-explode-v1
 local function explode( str, delimiter, limit ) --> strlst
    limit = limit or 4294967296
@@ -378,6 +401,59 @@ local function matchesf( pattern ) --> func
       local i = string.find( str, pattern )
       return i ~= nil
    end
+end
+--ZFUNC-mint-v0
+local function mint( template, ename ) --> ( sandbox ) --> expstr, err
+   if not ename then ename = '_o' end
+   local function expr(e) return ' '..ename..'('..e..')' end
+   
+   local function compat_load( str, env )
+      local chunkname = 'mint_script'
+      local func, err
+      if _VERSION ~= 'Lua 5.1' then
+         func, err = load( str, chunkname, 't', env )
+      else
+         func, err = loadstring( str, chunkname)
+         if func then setfenv( func, env ) end
+      end
+      return func, err
+   end
+   -- Generate a script that expands the template
+   local script = template:gsub( '(.-)@(%b{})([^@]*)',
+     function( prefix, code, suffix )
+        prefix = expr( string.format( '%q', prefix ) )
+        suffix = expr( string.format( '%q', suffix ) )
+        code = code:sub( 2, #code-1 )
+        if code:match( '^{.*}$' ) then
+           return prefix .. code:sub( 2, #code-1 ) .. suffix
+        else
+           return prefix .. expr( code ) .. suffix
+        end
+     end
+   )
+   -- The generator must be run only if at least one @{} was found
+   local run_generator = ( script ~= template )
+   -- Return a function that executes the script with a custom environment
+   return function( sandbox )
+    if not run_generator then return script end
+    local expstr = ''
+    if 'table' ~= type( sandbox ) then
+      return nil, "mint generator requires a sandbox"
+    end
+    local oldout = sandbox[ ename ]
+    sandbox[ ename ] = function( out ) expstr = expstr..tostring(out) end
+    local generate, err = compat_load( script, sandbox )
+    if not generate or err then
+       sandbox[ ename ] = oldout
+       return nil, err..'\nTemplate script: [[\n'..script..'\n]]'
+    end
+    local ok, err = pcall(generate)
+    sandbox[ ename ] = oldout
+    if not ok or err then
+       return nil, err..'\nTemplate script: [[\n'..script..'\n]]'
+    end
+    return expstr
+  end
 end
 --ZFUNC-mkdirtree-v1
 local function mkdirtree( tree, root ) --> res, err
@@ -698,8 +774,6 @@ end
 --------------------------------------------------------------------------------
 --LuaZDF-end
 --------------------------------------------------------------------------------
-
-local lustache = require( "lustache" )
 
 --------------------------------------------------------------------------------
 -- Output Util Functions
@@ -1246,11 +1320,11 @@ elseif cmd == "init" then
    end
 
    local adocTmpl = [=[
-= {{func}}
+= @{func}
 [source,lua]
 ----
 --TODO
-function {{func}}( par ) --> res
+function @{func}( par ) --> res
 ----
 
 == Description
@@ -1271,14 +1345,14 @@ lorem ipsum
 
 [source,lua]
 ----
-include::{{func}}.lua[]
+include::@{func}.lua[]
 ----
 
 == Examples
 
 [source,lua]
 ----
-include::{{func}}.ex1.lua[]
+include::@{func}.ex1.lua[]
 ----
 
 == Inspired by
@@ -1292,32 +1366,33 @@ include::{{func}}.ex1.lua[]
 
    local implTmpl = [=[
 local lfs = require( "lfs" ) --ZREQ-lfs
---ZFUNC-{{func}}-v1
-local function {{func}}( ... )
+--ZFUNC-@{func}-v1
+local function @{func}( ... )
    --TODO
 end
 
-return {{func}}
+return @{func}
 ]=]
 
    local testTmpl = [=[
-local t = require( "tapered" )
-local {{func}} = require( "{{func}}" )
+local t = require( "taptest" )
+local @{func} = require( "@{func}" )
 -- util functions
 local otherfunc = require( "otherfunc" )
 --TODO
 -- setup
 -- test
-t.nok( true )
+t( @{func}, true )
+t( @{func}, false )
 -- teardown
-t.done()
+t()
 ]=]
 
    local dirtree = {
       [ name ] = {
-         [ name..".adoc" ] = lustache:render( adocTmpl, { func=name } ),
-         [ name..".ex1.lua" ] = lustache:render( testTmpl, { func=name } ),
-         [ name..".lua" ] = lustache:render( implTmpl, { func=name } )
+         [ name..".adoc" ] = mint( adocTmpl ){ func=name },
+         [ name..".ex1.lua" ] = mint( testTmpl ){ func=name },
+         [ name..".lua" ] = mint( implTmpl ){ func=name }
       }
    }
    local res, err = mkdirtree( dirtree, ztree.mod[ mod ] )
