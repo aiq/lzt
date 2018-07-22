@@ -13,8 +13,7 @@ source = {
 
 dependencies = {
    "lua >= 5.1",
-   "luafilesystem",
-   "lustache"
+   "luafilesystem"
 }
 
 build = {

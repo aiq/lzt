@@ -23,7 +23,6 @@ before_install:
    - sudo apt-get update -qq
    - sudo apt-get install -qq bats
    - luarocks install luafilesystem
-   - luarocks install lustache
 
 script:
    - cd test
