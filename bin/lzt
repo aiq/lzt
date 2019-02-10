@@ -3,10 +3,10 @@
 --------------------------------------------------------------------------------
 --LuaZDF-begin --with addedge appendall basename buildgraph buildset currentdir
 --+ deepcopy difference dirfiles dirhas dirname dirtree escapeshellarg explode
---+ findif flatten getoptvalues indexof isdir isempty keys leftpad longextname
---+ map matchesf mint mkdirtree notf readargsfile readfile readlines removeif
---+ removerange reverse rmdirtree rmprefix rmsuffix slice startswith subdirs
---+ trim tsort2d values without writelines
+--+ findif findup flatten getoptvalues indexof isdir isempty keys leftpad
+--+ longextname map matchesf mint mkdirtree notf readargsfile readfile
+--+ readlines relativepath removeif removerange reverse rmdirtree rmprefix
+--+ rmsuffix slice startswith subdirs trim tsort2d values without writelines
 --------------------------------------------------------------------------------
 local lfs = require( "lfs" ) --ZREQ-lfs
 --ZFUNC-appendall-v1
@@ -15,6 +15,15 @@ local function appendall( arr, oth ) --> arr
       table.insert( arr, v )
    end
    return arr
+end
+--ZFUNC-currentdir-v1
+local function currentdir() --> path
+   --ZFUNC-unixpath-v1
+   local function unixpath( path )
+      return path:gsub( "\\", "/" )
+   end
+   local path = lfs.currentdir()
+   return unixpath( path )
 end
 --ZFUNC-deepcopy-v1
 local function deepcopy( tab ) --> copy
@@ -28,6 +37,45 @@ local function deepcopy( tab ) --> copy
 	setmetatable( copy, mt )
 	return copy
 end
+--ZFUNC-dirhas-v1
+local function dirhas( path, name, mode ) --> entrypath
+   local modeval = lfs.attributes( path, "mode" )
+   if modeval ~= "directory" then return nil end
+   for entry in lfs.dir( path ) do
+      if entry == name then
+         local entrypath = path.."/"..entry
+         if mode then
+            local modeval = lfs.attributes( entrypath, "mode" )
+            if modeval ~= mode then
+               return nil
+            end
+         end
+         return entrypath
+      end
+   end
+   return nil
+end
+--ZFUNC-dirname-v1
+local function dirname( path ) --> parent
+   local i = #path
+   local c = string.sub( path, i, i )
+   if c == "/" and #path >= 1 then
+      i = i - 1
+      c = string.sub( path, i, i )
+   end
+   
+   while i > 0 and c ~= "/" do
+      i = i - 1
+      c = string.sub( path, i, i )
+   end
+   if i == 0 then 
+      return path
+   elseif i == 1 then -- root case
+      return string.sub( path, 1, 1 )
+   else
+      return string.sub( path, 1, i-1 )
+   end
+end
 --ZFUNC-indexof-v1
 local function indexof( arr, val, init ) --> idx
    init = init or 1
@@ -36,6 +84,15 @@ local function indexof( arr, val, init ) --> idx
       if v == val then return idx end
    end
    return nil
+end
+--ZFUNC-isdir-v1
+local function isdir( path ) --> res
+   local mode = lfs.attributes( path, "mode" )
+   if mode == "directory" then
+      return true
+   else
+      return false
+   end
 end
 --ZFUNC-readlines-v1
 local function readlines( filename ) --> strlst, err
@@ -133,15 +190,6 @@ local function buildset( arr )
    for _, v in ipairs( arr ) do res[ v ] = true end
    return res
 end
---ZFUNC-currentdir-v1
-local function currentdir() --> path
-   --ZFUNC-unixpath-v1
-   local function unixpath( path )
-      return path:gsub( "\\", "/" )
-   end
-   local path = lfs.currentdir()
-   return unixpath( path )
-end
 --ZFUNC-difference-v1
 local function difference( a, b ) --> res
    local res = {}
@@ -162,45 +210,6 @@ local function dirfiles( path ) --> iter
       end
    end
    return coroutine.wrap( function() yielddir( path ) end )
-end
---ZFUNC-dirhas-v1
-local function dirhas( path, name, mode ) --> entrypath
-   local modeval = lfs.attributes( path, "mode" )
-   if modeval ~= "directory" then return nil end
-   for entry in lfs.dir( path ) do
-      if entry == name then
-         local entrypath = path.."/"..entry
-         if mode then
-            local modeval = lfs.attributes( entrypath, "mode" )
-            if modeval ~= mode then
-               return nil
-            end
-         end
-         return entrypath
-      end
-   end
-   return nil
-end
---ZFUNC-dirname-v1
-local function dirname( path ) --> parent
-   local i = #path
-   local c = string.sub( path, i, i )
-   if c == "/" and #path >= 1 then
-      i = i - 1
-      c = string.sub( path, i, i )
-   end
-   
-   while i > 0 and c ~= "/" do
-      i = i - 1
-      c = string.sub( path, i, i )
-   end
-   if i == 0 then 
-      return path
-   elseif i == 1 then -- root case
-      return string.sub( path, 1, 1 )
-   else
-      return string.sub( path, 1, i-1 )
-   end
 end
 --ZFUNC-dirtree-v1
 local function dirtree( dir ) --> iter
@@ -295,6 +304,80 @@ local function findif( arr, fv, init ) --> v, i
    end
    return nil, nil
 end
+local findup = (function() 
+--ZFUNC-unixpath-v1
+local function unixpath( path )
+   return path:gsub( "\\", "/" )
+end
+--ZFUNC-rootprefix-v1
+local function rootprefix( path )
+   local remote = path:match[[^//%w+/]] or path:match[[^\\%w+\]]
+   if remote then return remote end
+   local unix = path:sub( 1, 1 )
+   if unix == "/" then return unix end
+   local win = path:match[=[^[a-zA-Z]:[\/]]=]
+   if win then return win end
+   return ""
+end
+--ZFUNC-isabsolute-v1
+local function isabsolute( path ) --> res
+   return rootprefix( path ) ~= ""
+end
+--ZFUNC-firstchar-v1
+local function firstchar( str )
+   return string.sub( str, 1, 1 )
+end
+--ZFUNC-lastchar-v1
+local function lastchar( str )
+   return string.sub( str, #str )
+end
+--ZFUNC-joinpath-v1
+local function joinpath( tab )
+   local rooted = false
+   local tmptab = {}
+   for k, s in ipairs( tab ) do
+      if k == 1 and firstchar( s ) == "/" then
+         rooted = true
+      end
+      if firstchar( s ) == "/" then
+         s = s:sub( 2 )
+      end
+      if lastchar( s ) == "/" then
+         s = s:sub( 1, #s - 1 )
+      end
+      if #s > 0 then
+         table.insert( tmptab, s )
+      end
+   end
+   if rooted then
+      return "/"..table.concat( tmptab, "/" )
+   end
+   return table.concat( tmptab, "/" )
+end
+--ZFUNC-abspath-v2
+local function abspath( path ) --> abs
+   if isabsolute( path ) then
+      return path
+   end
+   return joinpath{ currentdir(), path }
+end
+--ZFUNC-findup-v1
+local function findup( path, name, mode, depth ) --> entrypath
+   if not isdir( path ) then return nil end
+   local currdir = abspath( path )
+   while not dirhas( currdir, name, mode ) do
+      local parentdir = dirname( currdir )
+      if parentdir == currdir then return nil end
+      if depth then
+         depth = depth-1
+         if depth < 0 then return nil end
+      end
+      currdir = parentdir
+   end
+   return joinpath{ currdir, name }
+end
+return findup
+end)()
 --ZFUNC-flatten-v1
 local function flatten( arr, shallow ) --> flatarr
    local flatarr = {}
@@ -339,15 +422,6 @@ local function getoptvalues( args, name, max ) --> opt, values, rest
       end
    end
    return opt, values, rest
-end
---ZFUNC-isdir-v1
-local function isdir( path ) --> res
-   local mode = lfs.attributes( path, "mode" )
-   if mode == "directory" then
-      return true
-   else
-      return false
-   end
 end
 --ZFUNC-isempty-v1
 local function isempty( tab ) --> res
@@ -587,6 +661,99 @@ local function readfile( filename ) --> str, err
    if err then return nil, err end
    return str
 end
+local relativepath = (function() 
+--ZFUNC-unixpath-v1
+local function unixpath( path )
+   return path:gsub( "\\", "/" )
+end
+--ZFUNC-rootprefix-v1
+local function rootprefix( path )
+   local remote = path:match[[^//%w+/]] or path:match[[^\\%w+\]]
+   if remote then return remote end
+   local unix = path:sub( 1, 1 )
+   if unix == "/" then return unix end
+   local win = path:match[=[^[a-zA-Z]:[\/]]=]
+   if win then return win end
+   return ""
+end
+--ZFUNC-isabsolute-v1
+local function isabsolute( path ) --> res
+   return rootprefix( path ) ~= ""
+end
+--ZFUNC-firstchar-v1
+local function firstchar( str )
+   return string.sub( str, 1, 1 )
+end
+--ZFUNC-lastchar-v1
+local function lastchar( str )
+   return string.sub( str, #str )
+end
+--ZFUNC-joinpath-v1
+local function joinpath( tab )
+   local rooted = false
+   local tmptab = {}
+   for k, s in ipairs( tab ) do
+      if k == 1 and firstchar( s ) == "/" then
+         rooted = true
+      end
+      if firstchar( s ) == "/" then
+         s = s:sub( 2 )
+      end
+      if lastchar( s ) == "/" then
+         s = s:sub( 1, #s - 1 )
+      end
+      if #s > 0 then
+         table.insert( tmptab, s )
+      end
+   end
+   if rooted then
+      return "/"..table.concat( tmptab, "/" )
+   end
+   return table.concat( tmptab, "/" )
+end
+--ZFUNC-abspath-v2
+local function abspath( path ) --> abs
+   if isabsolute( path ) then
+      return path
+   end
+   return joinpath{ currentdir(), path }
+end
+--ZFUNC-splitpath-v1
+local function splitpath( path ) --> tab
+   local tab = {}
+   for token in string.gmatch( path, "[^/]+" ) do
+      if #token > 0 then
+         table.insert( tab, token )
+      end
+   end
+   return tab
+end
+--ZFUNC-relativepath-v1
+local function relativepath( from, to ) --> path
+   from = abspath( from )
+   to = abspath( to )
+   if from == to then return "" end
+   local fromtab = splitpath( from )
+   local totab = splitpath( to )
+   local f = 1
+   local t = 1
+   while f <= #fromtab and
+         t <= #totab and
+         fromtab[ f ] == totab[ t ] do
+      f = f+1
+      t = t+1
+   end
+   local pathtab = {}
+   for i = f, #fromtab do
+      table.insert( pathtab, ".." )
+   end
+   for i = t, #totab do
+      table.insert( pathtab, totab[ i ] )
+   end
+   return table.concat( pathtab, "/" )
+end
+return relativepath
+end)()
 --ZFUNC-removeif-v1
 local function removeif( arr, fv, init ) --> removed
    init = init or 1
@@ -838,12 +1005,18 @@ local function getargs( args )
 end
 
 local function getdir( args )
-   local dir = currentdir()
-
+   local dir = nil
    local opt, values, args = getoptvalues( args, "--dir", 1 )
-
    if opt then
       dir = values[ 1 ]
+   end
+
+   if not dir then
+      dir = os.getenv( "LUAZDF_PATH" )
+   end
+
+   if not dir then
+      dir = currentdir()
    end
 
    if not isdir( dir ) then
@@ -851,18 +1024,13 @@ local function getdir( args )
       errexit()
    end
 
-   local count = 3
-   while count > 0 do
-      if dirhas( dir, ".zdfroot", "file" ) then
-         return rmsuffix( dir, "/" ), args
-      end
-         
-      dir = dirname( dir )
-      count = count-1
+   dir = findup( dir, ".zdfroot", "file", 3 )
+   if not dir then
+      errfln( "not able to find the luazdf root directory" )
+      errexit()
    end
 
-   errfln( "not able to find the luazdf root directory" )
-   errexit()
+   return rmsuffix( dirname( relativepath( currentdir(), dir ) ), "/" ), args
 end
 
 local function buildztree( dir )
