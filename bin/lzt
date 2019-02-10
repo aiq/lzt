@@ -1677,9 +1677,8 @@ elseif cmd == "luapath" then
    local lines = {}
    
    local root = ztree.root
-   table.insert( lines, 'LUAZDF_PATH="'..root..'"' )
    for _, m in ipairs( modules ) do
-      table.insert( lines, upper( m )..'="$LUAZDF_PATH/'..m..'/?/?.lua"' )
+      table.insert( lines, upper( m )..'="'..root..'/'..m..'/?/?.lua"' )
    end
    modules = map( modules, upper )
    table.insert( lines, 'export LUA_PATH="$'..table.concat( modules, ";$" )..';;"' )
