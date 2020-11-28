@@ -956,10 +956,6 @@ end
 local debug = false
 local normalOutput = true
 
-local function errexit()
-   os.exit( 1 )
-end
-
 local function debugln( ... )
    if debug then
       return print( "[DEBUG]", ... )
@@ -988,6 +984,13 @@ local function errfln( str, ... )
    return io.stderr:write( "Error: ", str:format( ... ), "\n" )
 end
 
+local function errexit( str, ... )
+   if str then
+      errfln( str, ... )
+   end
+   os.exit( 1 )
+end
+
 --------------------------------------------------------------------------------
 -- ARG Util Functions
 --------------------------------------------------------------------------------
@@ -997,8 +1000,7 @@ local function getargs( args )
    
    local argvalues, err = readargsfile( values[ 1 ] )
    if err then
-      errfln( "%q", err )
-      errexit()
+      errexit( "%q", err )
    end
 
    return appendall( args, argvalues )
@@ -1020,14 +1022,12 @@ local function getdir( args )
    end
 
    if not isdir( dir ) then
-      errfln( "%q is not a valid directory!", dir )
-      errexit()
+      errexit( "%q is not a valid directory!", dir )
    end
 
    dir = findup( dir, ".zdfroot", "file", 3 )
    if not dir then
-      errfln( "not able to find the luazdf root directory" )
-      errexit()
+      errexit( "not able to find the luazdf root directory" )
    end
 
    return rmsuffix( dirname( relativepath( currentdir(), dir ) ), "/" ), args
@@ -1161,6 +1161,8 @@ local function buildztree( dir )
          end
          info.g = without( info.g, "--WITHOUTLINE--" )
          if #info.g > 0 then info.hasglobals = true end
+
+         return nil
       end
 
       info.removefn = function ( info, func )
@@ -1200,14 +1202,12 @@ local function filterbyselection( ztree, args )
       local notfound = difference( values, result )
       if #notfound > 0 then
          table.sort( notfound )
-         errfln( "did not found functions: %s", table.concat( notfound, " " ) )
-         errexit()
+         errexit( "did not found functions: %s", table.concat( notfound, " " ) )
       end
    end
    local function checkunknownargs( args )
       if #args > 0 then
-         errfln( "unknown args: %s", table.concat( args, " " ) )
-         errexit()
+         errexit( "unknown args: %s", table.concat( args, " " ) )
       end
    end
 
@@ -1217,8 +1217,7 @@ local function filterbyselection( ztree, args )
    end
 
    if args[ 1 ] ~= "--with" and args[ 1 ] ~= "--appear" then
-      errfln( "you must define with --with or --appear the functions" )
-      errexit()
+      errexit( "you must define with --with or --appear the functions" )
    end
 
    local with_opt, with_values, args = getoptvalues( args, "--with" )
@@ -1241,7 +1240,9 @@ local function filterbyselection( ztree, args )
       local result = {}
       local appearset = buildset( appear_values )
       for f in pairs( ztree.fn ) do
-         local info = ztree:infofor( f )
+         local info, err = ztree:infofor( f )
+         if err then errexit( err ) end
+
          for _, subf in pairs( info.fn ) do
             if appearset[ subf.name ] then
                table.insert( result, f )
@@ -1320,8 +1321,7 @@ local function getfuncorder( funcinfos )
    end
    local groups, err = tsort2d( graph )
    if err then
-      errfln( err )
-      errexit()
+      errexit( err )
    end
    for _, group in ipairs( groups ) do table.sort( group ) end
    return flatten( groups )
@@ -1399,7 +1399,8 @@ if cmd == "check" then
    local funclist = filterbyselection( ztree, {} )
    local funcinfos = {}
    for _, f in ipairs( funclist ) do
-      funcinfos[ f ] = ztree:infofor( f )
+      funcinfos[ f ], err = ztree:infofor( f )
+      if err then errexit( err ) end
    end
 
    local problem = false
@@ -1431,8 +1432,7 @@ if cmd == "check" then
 elseif cmd == "checkname" then
    local name = table.remove( arg, 1 )
    if not name then
-      errfln( "checkname requires one parameter 'name'." )
-      errexit()
+      errexit( "checkname requires one parameter 'name'." )
    end
 
    if not goodname( name, ztree ) then
@@ -1446,11 +1446,11 @@ elseif cmd == "info" then
    -- info { fn={  name, version, level firstline, lastline, main }
    --        req={ name, var }
    local name = arg[ 1 ]
-   if not name then
-      errfln( "info require the parameter 'name'" )
-      errexit()
-   end
-   local info = ztree:infofor( name )
+   if not name then errexit( "info require the parameter 'name'" ) end
+
+   local info, err = ztree:infofor( name )
+   if err then errexit( err ) end
+
    printfln( "mainfn=%q / hasglobals=%q", info.mainfn.name, tostring( info.hasglobals ) )
    for _, f in pairs( info.fn ) do
       printfln( "name=%q / version=%q / level=%q / [ %d - %d ] / main=%q", f.name, f.version, f.level, f.firstline, f.lastline, tostring( f.main ) )
@@ -1473,19 +1473,16 @@ elseif cmd == "init" then
    local name = table.remove( arg, 1 )
    local mod = table.remove( arg, 1 )
    if not name then
-      errfln( "init requires the parameter 'name'." )
-      errexit()
+      errexit( "init requires the parameter 'name'." )
    end
    if not mod then
-      errfln( "init requires the parameter 'module'." )
-      errexit()
+      errexit( "init requires the parameter 'module'." )
    end
    if not goodname( name, ztree ) then
       errexit()
    end
    if not ztree.mod[ mod ] then
-      errfln( "%q is not a valid module.", mod )
-      errexit()
+      errexit( "%q is not a valid module.", mod )
    end
 
    local adocTmpl = [=[
@@ -1566,8 +1563,7 @@ t()
    }
    local res, err = mkdirtree( dirtree, ztree.mod[ mod ] )
    if err then
-      errfln( err )
-      errexit()
+      errexit( err )
    end
 
    printfln( "created %q succesfull in %q", name ,ztree.mod[ mod ] )
@@ -1577,15 +1573,13 @@ elseif cmd == "inject" then
    local srcfile = table.remove( arg, 1 )
    local filelines, err = readlines( srcfile )
    if err then
-      errfln( err )
-      errexit()
+      errexit( err )
    end
    local destfile = table.remove( arg, 1 )
 
    local _, startpoint = findif( filelines, matchesf( "^%-%-LuaZDF%-begin" ) )
    if not startpoint then
-      errfln( "No --LuaZDF-begin tag in the destination file %q", srcfile )
-      errexit()
+      errexit( "No --LuaZDF-begin tag in the destination file %q", srcfile )
    end
 
    while startpoint do
@@ -1605,13 +1599,11 @@ elseif cmd == "inject" then
 
       local _, endpoint = findif( filelines, matchesf( "^%-%-LuaZDF%-end" ), startpoint )
       if not endpoint then
-         errfln( "No --LuaZDF-end tag in the destination file %q", srcfile )
-         errexit()
+         errexit( "No --LuaZDF-end tag in the destination file %q", srcfile )
       end
 
       if endpoint <= startpoint then
-         errfln( "The --LuaZDF-end(%n) <= --LuaZDF-begin(%n)", endpoint, startpoint )
-         errexit()
+         errexit( "The --LuaZDF-end(%n) <= --LuaZDF-begin(%n)", endpoint, startpoint )
       end
 
       debugfln( "startpoint: %i / endpoint: %i", startpoint, endpoint )
@@ -1621,7 +1613,8 @@ elseif cmd == "inject" then
       local funclist, opt, optvalues = filterbyselection( ztree, arg )
       local funcinfos = {}
       for _, f in ipairs( funclist ) do
-         funcinfos[ f ] = ztree:infofor( f )
+         funcinfos[ f ], err = ztree:infofor( f )
+         if err then errexit( err ) end
       end
 
       debugln( "unsorted function list:", table.concat( funclist, " - " ) )
@@ -1663,8 +1656,7 @@ elseif cmd == "inject" then
 -------------------------------------------------------------------------luapath
 elseif cmd == "luapath" then
    if #arg > 0 then
-      errfln( "luapath does not support additional parameter" )
-      errexit()
+      errexit( "luapath does not support additional parameter" )
    end
    
    local function upper( s )
@@ -1690,7 +1682,8 @@ elseif cmd == "makelib" then
    table.sort( funclist )
    local funcinfos = {}
    for _, f in ipairs( funclist ) do
-      funcinfos[ f ] = ztree:infofor( f )
+      funcinfos[ f ], err = ztree:infofor( f )
+      if err then errexit( err ) end
    end
 
    debugln( "unsorted function list:", table.concat( funclist, " - " ) )
@@ -1748,14 +1741,14 @@ elseif cmd == "vdiff" then
    local filename = table.remove( arg, 1 )
    local filelines, err = readlines( filename )
    if err then
-      errfln( err )
-      errexit()
+      errexit( err )
    end
 
    for _, line in ipairs( filelines ) do
       local x, _, name, codever = string.find( line, ztree.funcpattern )
       if x then
-         local info = ztree:infofor( name )
+         local info, err = ztree:infofor( name )
+
          if info then
             local repover = info.mainfn.version
             if repover ~= codever then
@@ -1798,7 +1791,9 @@ elseif cmd == "whattodo" then
 
    local tempfn = {}
    for _, f in ipairs( functions ) do
-      local info = ztree:infofor( f )
+      local info, err = ztree:infofor( f )
+      if err then errexit( err ) end
+
       if info.mainfn.version == 0 then
          table.insert( tempfn, info.mainfn.name )
       end
@@ -1810,7 +1805,6 @@ elseif cmd == "whattodo" then
 
 ---------------------------------------------------------------------------error
 else
-   errfln( "%q is not a valid command.", cmd )
-   errexit()
+   errexit( "%q is not a valid command.", cmd )
 end
 
