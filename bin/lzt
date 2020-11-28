@@ -1159,6 +1159,9 @@ local function buildztree( dir )
                setrange( info.g, i, i, "--WITHOUTLINE--" )
             end
          end
+         if info.mainfn == nil then
+            return string.format( "missing function %q", func )
+         end
          info.g = without( info.g, "--WITHOUTLINE--" )
          if #info.g > 0 then info.hasglobals = true end
 
@@ -1189,7 +1192,8 @@ local function buildztree( dir )
          return result
       end
       
-      info:reinit( strlst )
+      local err = info:reinit( strlst )
+      if err then return nil, err end
 
       return info
    end
