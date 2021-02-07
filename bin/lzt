@@ -1127,12 +1127,12 @@ local function getdir( args )
       errexit( "%q is not a valid directory!", dir )
    end
 
-   dir = dirname( findup( dir, ".zdfroot", "file", 3 ) )
+   dir = findup( dir, ".zdfroot", "file", 3 )
    if not dir then
       errexit( "not able to find the luazdf root directory" )
    end
 
-   return relativepath( currentdir(), dir ), args
+   return relativepath( currentdir(), dirname( dir ) ), args
 end
 
 local function buildztree( dir )
