@@ -1,5 +1,5 @@
 package = "lzt"
-version = "0.1.3-0"
+version = "0.1.4-0"
 
 description = {
    summary = "command-line tool to work with a luazdf repository",
@@ -8,9 +8,8 @@ description = {
 }
 
 source = {
-   url = "https://github.com/aiq/lzt/archive/v0.1.3.tar.gz",
-   md5 = "2cb29b455ba1cb90c33faf90f8515417",
-   dir = "lzt-0.1.3"
+   url = "https://github.com/aiq/lzt/archive/v0.1.4.tar.gz",
+   dir = "lzt-0.1.4"
 }
 
 dependencies = {
