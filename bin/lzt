@@ -1870,7 +1870,7 @@ elseif cmd == "vdiff" then
 
 -------------------------------------------------------------------------version
 elseif cmd == "version" then
-   println( "lzt version: 0.1.3" )
+   println( "lzt version: 0.1.4" )
 
 ------------------------------------------------------------------------whattodo
 elseif cmd == "whattodo" then
