@@ -1464,7 +1464,7 @@ init <name> <module>    - creates default dir for a new function
 inject <src> [dest]     - injects the functions into src, writes to stdout/dest
 luapath                 - writes a LUA_PATH value with all functions included
 makelib <selection>     - writes a Lua module to the stdout
-testenv <selection>     - creates a shell script that allows to test functions
+testenv <selection>     - creates a shell script that runs the function tests
 usage                   - prints a short usage overview
 vdiff <filename>        - shows the functions where the version not up to date
 version                 - lzt version
