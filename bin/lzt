@@ -1,21 +1,15 @@
 #!/usr/bin/env lua
 
 --------------------------------------------------------------------------------
---LuaZDF-begin --with addedge appendall basename buildgraph buildset currentdir
---+ deepcopy difference dirfiles dirhas dirname dirtree escapeshellarg explode
---+ findif findup flatten getoptvalues indexof isdir isempty keys leftpad
---+ longextname map matchesf mint mkdirtree notf readargsfile readfile
---+ readlines relativepath removeif removerange reverse rmdirtree rmprefix
---+ rmsuffix slice startswith subdirs trim tsort2d values without writelines
+--LuaZDF-begin --with abspath addedge appendall basename buildgraph buildset
+--+ currentdir deepcopy difference dirfiles dirhas dirname dirtree
+--+ escapeshellarg explode findif findup flatten getoptvalues indexof isdir
+--+ isempty keys leftpad longextname map matchesf mint mkdirtree normpath notf
+--+ readargsfile readfile readlines relativepath removeif removerange reverse
+--+ rmdirtree rmprefix rmsuffix slice startswith subdirs trim tsort2d values
+--+ without writelines
 --------------------------------------------------------------------------------
 local lfs = require( "lfs" ) --ZREQ-lfs
---ZFUNC-appendall-v1
-local function appendall( arr, oth ) --> arr
-   for _, v in ipairs( oth ) do
-      table.insert( arr, v )
-   end
-   return arr
-end
 --ZFUNC-currentdir-v1
 local function currentdir() --> path
    --ZFUNC-unixpath-v1
@@ -24,6 +18,117 @@ local function currentdir() --> path
    end
    local path = lfs.currentdir()
    return unixpath( path )
+end
+local normpath = (function() 
+--ZFUNC-splitpath-v1
+local function splitpath( path )
+   local tab = {}
+   for token in string.gmatch( path, "[^/]+" ) do
+      if #token > 0 then
+         table.insert( tab, token )
+      end
+   end
+   return tab
+end
+--ZFUNC-normpath-v1
+local function normpath( dirty ) --> clean
+   if dirty == "" then return "." end
+   local rooted = dirty:sub( 1, 1 ) == "/"
+   
+   local dirtytab = splitpath( dirty )
+   local cleantab = {}
+   for k, v in ipairs( dirtytab ) do
+      if v == "." then
+      elseif v == ".." then
+         table.remove( cleantab )
+      elseif v == "" then
+      else
+         table.insert( cleantab, v )
+      end
+   end
+  
+   if rooted then
+      return "/"..table.concat( cleantab, "/" )
+   end
+   return table.concat( cleantab, "/" )
+end
+return normpath
+end)()
+local abspath = (function() 
+--ZFUNC-unixpath-v1
+local function unixpath( path )
+   return path:gsub( "\\", "/" )
+end
+--ZFUNC-rootprefix-v1
+local function rootprefix( path )
+   local remote = path:match[[^//%w+/]] or path:match[[^\\%w+\]]
+   if remote then return remote end
+   local unix = path:sub( 1, 1 )
+   if unix == "/" then return unix end
+   local win = path:match[=[^[a-zA-Z]:[\/]]=]
+   if win then return win end
+   return ""
+end
+--ZFUNC-isabsolute-v1
+local function isabsolute( path ) --> res
+   return rootprefix( path ) ~= ""
+end
+--ZFUNC-firstchar-v1
+local function firstchar( str )
+   return string.sub( str, 1, 1 )
+end
+--ZFUNC-lastchar-v1
+local function lastchar( str )
+   return string.sub( str, #str )
+end
+--ZFUNC-joinpath-v1
+local function joinpath( tab )
+   local rooted = false
+   local tmptab = {}
+   for k, s in ipairs( tab ) do
+      if k == 1 and firstchar( s ) == "/" then
+         rooted = true
+      end
+      if firstchar( s ) == "/" then
+         s = s:sub( 2 )
+      end
+      if lastchar( s ) == "/" then
+         s = s:sub( 1, #s - 1 )
+      end
+      if #s > 0 then
+         table.insert( tmptab, s )
+      end
+   end
+   if rooted then
+      return "/"..table.concat( tmptab, "/" )
+   end
+   return table.concat( tmptab, "/" )
+end
+--ZFUNC-splitpath-v1
+local function splitpath( path )
+   local tab = {}
+   for token in string.gmatch( path, "[^/]+" ) do
+      if #token > 0 then
+         table.insert( tab, token )
+      end
+   end
+   return tab
+end
+--ZFUNC-abspath-v3
+local function abspath( path ) --> abs
+   if isabsolute( path ) then
+      return normpath( path )
+   end
+   return normpath( joinpath{ currentdir(), path } )
+end
+return abspath
+end)()
+--ZFUNC-appendall-v1
+local function appendall( arr, oth ) --> arr
+   for _, v in ipairs( oth ) do
+      table.insert( arr, v )
+   end
+   return arr
 end
 --ZFUNC-deepcopy-v1
 local function deepcopy( tab ) --> copy
@@ -354,12 +459,15 @@ local function joinpath( tab )
    end
    return table.concat( tmptab, "/" )
 end
---ZFUNC-abspath-v2
-local function abspath( path ) --> abs
-   if isabsolute( path ) then
-      return path
+--ZFUNC-splitpath-v1
+local function splitpath( path )
+   local tab = {}
+   for token in string.gmatch( path, "[^/]+" ) do
+      if #token > 0 then
+         table.insert( tab, token )
+      end
    end
-   return joinpath{ currentdir(), path }
+   return tab
 end
 --ZFUNC-findup-v1
 local function findup( path, name, mode, depth ) --> entrypath
@@ -711,13 +819,6 @@ local function joinpath( tab )
    end
    return table.concat( tmptab, "/" )
 end
---ZFUNC-abspath-v2
-local function abspath( path ) --> abs
-   if isabsolute( path ) then
-      return path
-   end
-   return joinpath{ currentdir(), path }
-end
 --ZFUNC-splitpath-v1
 local function splitpath( path ) --> tab
    local tab = {}
@@ -728,13 +829,13 @@ local function splitpath( path ) --> tab
    end
    return tab
 end
---ZFUNC-relativepath-v1
+--ZFUNC-relativepath-v2
 local function relativepath( from, to ) --> path
    from = abspath( from )
    to = abspath( to )
-   if from == to then return "" end
-   local fromtab = splitpath( from )
-   local totab = splitpath( to )
+   if from == to then return "." end
+   local fromtab = splitpath( normpath( from ) )
+   local totab = splitpath( normpath( to ) )
    local f = 1
    local t = 1
    while f <= #fromtab and
@@ -750,6 +851,7 @@ local function relativepath( from, to ) --> path
    for i = t, #totab do
       table.insert( pathtab, totab[ i ] )
    end
+   if #pathtab == 0 then return "." end
    return table.concat( pathtab, "/" )
 end
 return relativepath
@@ -1025,12 +1127,12 @@ local function getdir( args )
       errexit( "%q is not a valid directory!", dir )
    end
 
-   dir = findup( dir, ".zdfroot", "file", 3 )
+   dir = dirname( findup( dir, ".zdfroot", "file", 3 ) )
    if not dir then
       errexit( "not able to find the luazdf root directory" )
    end
 
-   return rmsuffix( dirname( relativepath( currentdir(), dir ) ), "/" ), args
+   return relativepath( currentdir(), dir ), args
 end
 
 local function buildztree( dir )
@@ -1362,7 +1464,7 @@ init <name> <module>    - creates default dir for a new function
 inject <src> [dest]     - injects the functions into src, writes to stdout/dest
 luapath                 - writes a LUA_PATH value with all functions included
 makelib <selection>     - writes a Lua module to the stdout
-testenv <selection>     - creates a shell script that allows to test all
+testenv <selection>     - creates a shell script that allows to test functions
 usage                   - prints a short usage overview
 vdiff <filename>        - shows the functions where the version not up to date
 version                 - lzt version
@@ -1671,10 +1773,12 @@ elseif cmd == "luapath" then
    table.sort( modules )
 
    local lines = {}
-   
-   local root = ztree.root
+  --LUAZDF_PATH" 
+   local root = abspath( ztree.root )
+   local pathVal = upper( "path" )
+   table.insert( lines, pathVal..'="'..root..'"' )
    for _, m in ipairs( modules ) do
-      table.insert( lines, upper( m )..'="'..root..'/'..m..'/?/?.lua"' )
+      table.insert( lines, upper( m )..'="$'..pathVal..'/'..m..'/?/?.lua"' )
    end
    modules = map( modules, upper )
    table.insert( lines, 'export LUA_PATH="$'..table.concat( modules, ";$" )..';;"' )
